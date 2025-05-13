@@ -1,79 +1,121 @@
 library(Matrix)
+library(data.tree)
+library(collapsibleTree)
 
-# modules/mod_pairwise_server.R
-# In modules/mod_pairwise_server.R or wherever you handle the pairwise comparisons
 mod_pairwise_server <- function(id, hierarchy_data) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
+    # Helper: build data.tree from hierarchy_data (for recap/tree)
+    build_data_tree <- function(data) {
+      root <- Node$new(data$main_objective)
+      for (sub in data$hierarchy) {
+        sub_node <- root$AddChild(sub$name)
+        for (crit in sub$criteria) {
+          sub_node$AddChild(crit)
+        }
+      }
+      root
+    }
+
+    ### --- Pairwise Comparison Node Sources ---
+
+    # 2nd-level: Criteria grouped by sub-objective
+    criteria_comparison_nodes <- reactive({
+      req(hierarchy_data())
+      lapply(hierarchy_data()$hierarchy, function(sub) {
+        list(
+          sub_name = sub$name,
+          crit_names = sub$criteria
+        )
+      })
+    })
+
+    # 1st-level: Sub-objective names
+    subobjective_names <- reactive({
+      req(hierarchy_data())
+      sapply(hierarchy_data()$hierarchy, function(sub) sub$name)
+    })
+
+    ### --- INPUT PREFERENCES (Tab 2) ---
+
+    output$pairwise_comparisons_ui <- renderUI({
+      req(criteria_comparison_nodes(), subobjective_names())
+
+      tagList(
+        h4("🧭 Second-Level: Criteria Comparisons (per Sub-objective)"),
+        tagList(
+          lapply(criteria_comparison_nodes(), function(node) {
+            sub <- node$sub_name
+            crits <- node$crit_names
+
+            tagList(
+              h5(paste("Criteria under", sub)),
+              build_pairwise_inputs(ns, sub, crits),
+              tags$hr()
+            )
+          })
+        ),
+        h4("📊 First-Level: Sub-objective Comparisons (under Main Goal)"),
+        build_pairwise_inputs(ns, "Main_Objective", subobjective_names())
+      )
+    })
+
+    ### --- RECAP (Tab 1) ---
     output$recap_text <- renderUI({
-      data <- hierarchy_data()
-      req(data)
+      req(hierarchy_data())
+      tree <- build_data_tree(hierarchy_data())
+      num_nodes <- tree$totalCount
 
-      main_goal <- data$main_objective
-      subobjectives <- data$hierarchy
-      n_sub <- length(subobjectives)
-
-      # Count matrices
-      n_matrices <- 1  # One for sub-objectives vs. goal
-      for (sub in subobjectives) {
-        n_matrices <- n_matrices + 1  # One per sub-objective's criteria
-      }
-
-      HTML(paste0(
-        "<p><strong>Main Goal:</strong> ", main_goal, "</p>",
-        "<p><strong>Number of Sub-objectives:</strong> ", n_sub, "</p>",
-        "<p><strong>Sub-objectives:</strong><br>",
-        paste0("&bull; ", sapply(subobjectives, function(x) x$name), collapse = "<br>"), "</p>",
-        "<p><strong>Criteria under each Sub-objective:</strong><br>",
-        paste0(sapply(subobjectives, function(x) {
-          paste0("&bull; <em>", x$name, "</em>: ", length(x$criteria), " criteria")
-        }), collapse = "<br>"), "</p>",
-        "<p><strong>Total Pairwise Comparison Matrices to Complete:</strong> ", n_matrices, "</p>"
-      ))
+      tagList(
+        h4("Main Objective"),
+        p(hierarchy_data()$main_objective),
+        h4("Sub-objectives"),
+        tags$ul(
+          lapply(hierarchy_data()$hierarchy, function(sub) {
+            tags$li(
+              paste0(sub$name, " (", length(sub$criteria), " criteria)")
+            )
+          })
+        ),
+        h4("Criteria (Grouped)"),
+        tags$ul(
+          lapply(hierarchy_data()$hierarchy, function(sub) {
+            tags$li(
+              strong(sub$name),
+              tags$ul(
+                lapply(sub$criteria, function(c) tags$li(c))
+              )
+            )
+          })
+        ),
+        h4("Decision Tree"),
+        collapsibleTreeOutput(ns("tree_plot")),
+        h4("Statistics"),
+        p(paste("Total nodes in hierarchy:", num_nodes)),
+        p(paste("Number of pairwise comparison matrices needed:", num_nodes - 1))
+      )
     })
 
-    # Add the consistency check and weight calculation logic here
-    observe({
-      req(input$pairwise_matrix)  # Ensure the matrix is provided
-      pairwise_matrix <- input$pairwise_matrix  # Get the matrix input
-
-      # Validate matrix input
-      if (is.null(pairwise_matrix) || !is.matrix(pairwise_matrix)) {
-        showModal(modalDialog(
-          title = "Error",
-          "Please provide a valid pairwise comparison matrix.",
-          easyClose = TRUE
-        ))
-        return()
-      }
-
-      # Ensure the matrix is square
-      if (nrow(pairwise_matrix) != ncol(pairwise_matrix)) {
-        showModal(modalDialog(
-          title = "Error",
-          "The pairwise comparison matrix must be square.",
-          easyClose = TRUE
-        ))
-        return()
-      }
-
-      # Call the consistency and weights calculation function
-      consistency_result <- calc_consistency_and_weights(pairwise_matrix)
-
-      # Display consistency result and weights
-      output$consistency_result <- renderText({
-        paste0("Consistency Ratio (CR): ", round(consistency_result$CR, 3), "\n",
-               "Weights: ", paste(round(consistency_result$weights, 3), collapse = ", "))
-      })
-
-      # Plot weights
-      output$weights_plot <- renderPlot({
-        barplot(consistency_result$weights, main = "Criteria Weights", col = "skyblue",
-                names.arg = paste("Criteria", 1:length(consistency_result$weights)))
-      })
+    output$tree_plot <- renderCollapsibleTree({
+      req(hierarchy_data())
+      collapsibleTree(build_data_tree(hierarchy_data()))
     })
 
+    ### --- MATRICES & CONSISTENCY (Tab 3) ---
+    output$matrix_output_ui <- renderUI({
+      tagList(
+        h4("Saaty Matrices"),
+        p("Matrix and consistency info will be shown here.")
+      )
+    })
+
+    ### --- FINAL MATRICES (Tab 4) ---
+    output$pairwise_matrices_ui <- renderUI({
+      tagList(
+        h4("Final Weighted Matrices"),
+        p("This section can display heatmaps or matrices.")
+      )
+    })
   })
 }
-

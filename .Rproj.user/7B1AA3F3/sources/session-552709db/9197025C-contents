@@ -13,6 +13,7 @@ source("modules/mod_tree_ui.R")
 source("modules/mod_tree_server.R")
 source("modules/mod_pairwise_ui.R")
 source("modules/mod_pairwise_server.R")
+source("helpers.R")
 
 
 ui <- page_sidebar(

@@ -4,17 +4,20 @@ mod_hierarchy_ui <- function(id) {
   tagList(
     tabsetPanel(
       tabPanel("Main Objective",
-               textInput(ns("main_objective"), "Main Objective", "My Goal")
+               h5("Main Objective:"),
+               textInput(ns("main_objective"), "Insert here the main objective", "My Goal")
       ),
       tabPanel("Sub-objectives",
-               numericInput(ns("n_subobjectives"), "Number of Sub-objectives", 2, min = 1),
+               h5("Sub-objectives number:"),
+               numericInput(ns("n_subobjectives"), "Define the number of Sub-objectives", 2, min = 1, max = 9),
+               h5("Sub-objectives names:"),
                uiOutput(ns("subobjective_names_ui"))
       ),
       tabPanel("Criteria",
-               h4("Sub-objectives:"),
+               h5("Sub-objectives:"),
                uiOutput(ns("subobjective_name_display")),   # <--- display names here
                br(),
-               h4("Criteria Inputs"),
+               h5("Criteria Inputs"),
                uiOutput(ns("criteria_table_ui")),
                uiOutput(ns("criteria_naming_ui"))
       )

@@ -1,0 +1,57 @@
+# modules/mod_tree_server.R
+mod_tree_server <- function(id, hierarchy_data) {
+  moduleServer(id, function(input, output, session) {
+    ns <- session$ns
+
+    output$tree_plot <- renderCollapsibleTree({
+      data <- hierarchy_data()
+      req(data)
+
+      # Safely flatten the hierarchy structure into a data.frame
+      rows <- lapply(data$hierarchy, function(sub) {
+        sub_name <- sub$name
+        criteria <- unlist(sub$criteria)
+
+        if (is.null(criteria) || length(criteria) == 0 || all(criteria == "")) {
+          # No criteria defined, just Objective -> SubObjective
+          data.frame(
+            Objective = data$main_objective,
+            SubObjective = sub_name,
+            Criterion = NA,
+            stringsAsFactors = FALSE
+          )
+        } else {
+          # Full path: Objective -> SubObjective -> Criterion
+          data.frame(
+            Objective = data$main_objective,
+            SubObjective = sub_name,
+            Criterion = criteria,
+            stringsAsFactors = FALSE
+          )
+        }
+      })
+
+      tree_df <- do.call(rbind, rows)
+
+      # If no criteria, remove the column to avoid an extra level
+      if (all(is.na(tree_df$Criterion))) {
+        tree_df$Criterion <- NULL
+        hierarchy_cols <- c("Objective", "SubObjective")
+      } else {
+        tree_df <- na.omit(tree_df)  # remove incomplete rows
+        hierarchy_cols <- c("Objective", "SubObjective", "Criterion")
+      }
+
+      # Render the tree
+      collapsibleTree(
+        tree_df,
+        hierarchy = hierarchy_cols,
+        root = data$main_objective,
+        zoomable = TRUE,
+        width = "100%",
+        height = "600px",
+        collapsed = FALSE
+      )
+    })
+  })
+}
