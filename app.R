@@ -24,7 +24,7 @@ ui <- fluidPage(
         tabPanel("Hierarchy Builder", mod_hierarchy_ui("hierarchy")),
         tabPanel("Hierarchy Tree", mod_tree_ui("tree")),
         tabPanel("Pairwise Comparison", mod_pairwise_ui("pairwise"))
-        
+
       )
     ),
     mainPanel(
