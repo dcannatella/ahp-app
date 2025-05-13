@@ -15,33 +15,45 @@ source("modules/mod_pairwise_ui.R")
 source("modules/mod_pairwise_server.R")
 
 
-ui <- fluidPage(
-  titlePanel("AHP Decision Tree"),
-  sidebarLayout(
-    sidebarPanel(
-      # Menu for the tabs
-      tabsetPanel(
-        tabPanel("Hierarchy Builder", mod_hierarchy_ui("hierarchy")),
-        tabPanel("Hierarchy Tree", mod_tree_ui("tree")),
-        tabPanel("Pairwise Comparison", mod_pairwise_ui("pairwise"))
+ui <- page_sidebar(
+  title = "AHP Decision Tool",
+  theme = bs_theme(bootswatch = "flatly"),
 
-      )
-    ),
-    mainPanel(
-      uiOutput("pairwise_comparisons_ui"),  # Render pairwise comparison sliders here
-      textOutput("recap_section")           # Render recap text here
+  # Sidebar with accordion navigation
+  sidebar = sidebar(
+    accordion(
+      accordion_panel("Hierarchy Builder", actionButton("go_hierarchy", "Open")),
+      accordion_panel("Hierarchy Tree", actionButton("go_tree", "Open")),
+      accordion_panel("Pairwise Comparison", actionButton("go_pairwise", "Open"))
     )
-  )
+  ),
+
+  # Main panel switches view based on sidebar selection
+  uiOutput("main_content")
 )
 
 server <- function(input, output, session) {
-  # Load hierarchy data
-  hierarchy_data <- mod_hierarchy_server("hierarchy")
+  # Reactive value to track which panel is active
+  current_view <- reactiveVal("hierarchy")
 
-  # Generate pairwise comparison module
+  # Update view based on button click
+  observeEvent(input$go_hierarchy, current_view("hierarchy"))
+  observeEvent(input$go_tree, current_view("tree"))
+  observeEvent(input$go_pairwise, current_view("pairwise"))
+
+  # Load module server logic
+  hierarchy_data <- mod_hierarchy_server("hierarchy")
+  mod_tree_server("tree", hierarchy_data)
   mod_pairwise_server("pairwise", hierarchy_data)
 
-  mod_tree_server("tree", hierarchy_data)  # new tree module
+  # Switch UI content based on selected step
+  output$main_content <- renderUI({
+    switch(current_view(),
+           "hierarchy" = mod_hierarchy_ui("hierarchy"),
+           "tree" = mod_tree_ui("tree"),
+           "pairwise" = mod_pairwise_ui("pairwise")
+    )
+  })
 }
 
 shinyApp(ui, server)
