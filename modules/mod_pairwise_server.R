@@ -62,12 +62,16 @@ mod_pairwise_server <- function(id, hierarchy_data) {
     ### --- RECAP (Tab 1) ---
     output$recap_text <- renderUI({
       req(hierarchy_data())
+
       tree <- build_data_tree(hierarchy_data())
-      num_nodes <- tree$totalCount
+      num_nodes <- tree$totalCount - 1
+      num_subobjectives <- length(hierarchy_data()$hierarchy)
+      num_matrices <- 1 + num_subobjectives  # One for sub-objectives + one per sub-objective criteria group
 
       tagList(
         h4("Main Objective"),
         p(hierarchy_data()$main_objective),
+
         h4("Sub-objectives"),
         tags$ul(
           lapply(hierarchy_data()$hierarchy, function(sub) {
@@ -76,6 +80,7 @@ mod_pairwise_server <- function(id, hierarchy_data) {
             )
           })
         ),
+
         h4("Criteria (Grouped)"),
         tags$ul(
           lapply(hierarchy_data()$hierarchy, function(sub) {
@@ -87,11 +92,18 @@ mod_pairwise_server <- function(id, hierarchy_data) {
             )
           })
         ),
+
         h4("Decision Tree"),
         collapsibleTreeOutput(ns("tree_plot")),
+
         h4("Statistics"),
-        p(paste("Total nodes in hierarchy:", num_nodes)),
-        p(paste("Number of pairwise comparison matrices needed:", num_nodes - 1))
+        p(paste("Main Objective:", hierarchy_data()$main_objective)),
+        p(paste("Number of sub-objectives:", num_subobjectives)),
+        p(paste("Total number of pairwise comparison matrices needed:", num_matrices)),
+        tags$ul(
+          tags$li("1 matrix for comparing sub-objectives under the main goal"),
+          tags$li(paste(num_subobjectives, "matrices for comparing criteria within each sub-objective"))
+        )
       )
     })
 
@@ -101,47 +113,12 @@ mod_pairwise_server <- function(id, hierarchy_data) {
     })
 
     ### --- MATRICES & CONSISTENCY (Tab 3) ---
-
-    output$total_matrices_ui <- renderUI({
-      req(hierarchy_data())
-
-      # Calculate the total number of matrices based on the hierarchy structure
-      num_matrices <- length(get_comparison_nodes())  # Assuming get_comparison_nodes() returns nodes needing pairwise comparisons
-
-      tagList(
-        h4("Total Matrices Generated"),
-        p(paste("Number of matrices generated: ", num_matrices)),
-        p("Each matrix corresponds to a set of pairwise comparisons between criteria or sub-objectives.")
-      )
-    })
-
     output$matrix_output_ui <- renderUI({
-      req(get_comparison_nodes())
-      nodes <- get_comparison_nodes()
-
       tagList(
-        output$total_matrices_ui,  # Add this line to show total matrices
-        lapply(nodes, function(node) {
-          node_name <- node$name
-
-          bslib::card(
-            title = paste("Matrix for:", node_name),
-            full_screen = TRUE,
-            layout_column_wrap(
-              width = 1/2,
-              dataTableOutput(ns(paste0("matrix_", node_name))),
-              plotOutput(ns(paste0("weights_plot_", node_name)))
-            ),
-            verbatimTextOutput(ns(paste0("consistency_", node_name))),
-            p("Interpretation: A consistency ratio (CR) below 0.10 is generally acceptable. Higher values suggest inconsistent judgments.")
-          )
-        })
+        h4("Final Weighted Matrices"),
+        p("This section can display heatmaps or matrices.")
       )
     })
-
-
-
-
 
     ### --- FINAL MATRICES (Tab 4) ---
     output$pairwise_matrices_ui <- renderUI({
@@ -150,5 +127,6 @@ mod_pairwise_server <- function(id, hierarchy_data) {
         p("This section can display heatmaps or matrices.")
       )
     })
+
   })
 }
