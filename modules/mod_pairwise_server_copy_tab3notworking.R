@@ -102,25 +102,22 @@ mod_pairwise_server <- function(id, hierarchy_data) {
 
     ### --- MATRICES & CONSISTENCY (Tab 3) ---
 
-    output$total_matrices_ui <- renderUI({
+    get_comparison_nodes <- reactive({
       req(hierarchy_data())
+      tree <- build_data_tree(hierarchy_data())
 
-      # Calculate the total number of matrices based on the hierarchy structure
-      num_matrices <- length(get_comparison_nodes())  # Assuming get_comparison_nodes() returns nodes needing pairwise comparisons
-
-      tagList(
-        h4("Total Matrices Generated"),
-        p(paste("Number of matrices generated: ", num_matrices)),
-        p("Each matrix corresponds to a set of pairwise comparisons between criteria or sub-objectives.")
+      tree$Traverse(
+        traversal = "level",
+        filterFun = function(node) node$childrenCount > 1
       )
     })
+
 
     output$matrix_output_ui <- renderUI({
       req(get_comparison_nodes())
       nodes <- get_comparison_nodes()
 
       tagList(
-        output$total_matrices_ui,  # Add this line to show total matrices
         lapply(nodes, function(node) {
           node_name <- node$name
 
@@ -139,8 +136,34 @@ mod_pairwise_server <- function(id, hierarchy_data) {
       )
     })
 
+    observe({
+      nodes <- get_comparison_nodes()
 
+      for (node in nodes) {
+        local({
+          node_name <- node$name
+          child_names <- names(node$children)
 
+          output[[paste0("matrix_", node_name)]] <- renderDataTable({
+            mat <- build_saaty_matrix_from_inputs(node_name, child_names, input, ns)
+            round(mat, 3)
+          })
+
+          output[[paste0("weights_plot_", node_name)]] <- renderPlot({
+            mat <- build_saaty_matrix_from_inputs(node_name, child_names, input, ns)
+            result <- saaty_consistency(mat)
+            barplot(result$weights, names.arg = child_names, main = paste("Weights for", node_name),
+                    col = "steelblue", ylim = c(0, 1))
+          })
+
+          output[[paste0("consistency_", node_name)]] <- renderPrint({
+            mat <- build_saaty_matrix_from_inputs(node_name, child_names, input, ns)
+            result <- saaty_consistency(mat)
+            result[c("lambda_max", "CI", "RI", "CR")]
+          })
+        })
+      }
+    })
 
 
     ### --- FINAL MATRICES (Tab 4) ---

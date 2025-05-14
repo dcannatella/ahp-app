@@ -2,6 +2,7 @@ library(shiny)
 library(collapsibleTree)
 library(data.tree)
 library(Matrix)
+library(bslib)
 
 source("R/ahp_calculations.R")
 source("R/consistency_check.R")
