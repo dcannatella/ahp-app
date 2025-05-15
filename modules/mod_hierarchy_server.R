@@ -80,20 +80,29 @@ mod_hierarchy_server <- function(id) {
     # Reactive to return the whole structure
     hierarchy_data <- reactive({
       req(input$n_subobjectives)
+
       structure <- lapply(1:input$n_subobjectives, function(i) {
         sub_name <- input[[paste0("sub_", i)]]
         if (is.null(sub_name) || sub_name == "") sub_name <- paste("Sub", i)
 
         n_crit <- input[[paste0("n_crit_", i)]]
+        req(n_crit)  # 🔒 Make sure it's available before proceeding
+
         crits <- lapply(1:n_crit, function(j) {
           crit_name <- input[[paste0("crit_", i, "_", j)]]
           if (is.null(crit_name) || crit_name == "") crit_name <- paste("Criterion", j)
           crit_name
         })
+
         list(name = sub_name, criteria = crits)
       })
+
+
+      main_obj <- input$main_objective
+      if (is.null(main_obj) || main_obj == "") main_obj <- "Main Goal"
+
       list(
-        main_objective = if (!is.null(input$main_objective) && input$main_objective != "") input$main_objective else "Main Goal",
+        main_objective = main_obj,
         hierarchy = structure
       )
     })
