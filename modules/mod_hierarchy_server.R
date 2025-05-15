@@ -96,7 +96,7 @@ mod_hierarchy_server <- function(id) {
 
         list(name = sub_name, criteria = crits)
       })
-      
+
 
       main_obj <- input$main_objective
       if (is.null(main_obj) || main_obj == "") main_obj <- "Main Goal"
